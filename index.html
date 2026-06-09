@@ -556,6 +556,16 @@ window.pinKeyEnter=function(k,name){
 function renderHome(){
   const today=getToday(currentPerson),q=getQuote();
   return `
+  <div style="background:linear-gradient(135deg,var(--rose-deep),var(--rose));border-radius:20px;padding:20px;margin-bottom:12px;color:white;position:relative;overflow:hidden;">
+    <div style="position:absolute;right:-5px;bottom:-10px;font-size:70px;opacity:.15;">⚡</div>
+    <div style="font-family:'Playfair Display',serif;font-size:20px;margin-bottom:6px;">75-Tage Flex Challenge 🌸</div>
+    <p style="font-size:13px;opacity:.85;line-height:1.5;">Alice · Nazgol · Steffi · Irina · Bieta</p>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+      <div style="background:rgba(255,255,255,.2);border-radius:10px;padding:5px 12px;font-size:12px;font-weight:600;">Start: 02.06.2026</div>
+      <div style="background:rgba(255,255,255,.2);border-radius:10px;padding:5px 12px;font-size:12px;font-weight:600;">Ende: 15.08.2026</div>
+      <div style="background:rgba(255,255,255,.2);border-radius:10px;padding:5px 12px;font-size:12px;font-weight:600;">Tag ${today+1} / ${totalDays(currentPerson)}</div>
+    </div>
+  </div>
   <div style="background:linear-gradient(135deg,#FDF0F2,#F5D5DA);border-radius:20px;padding:20px;margin-bottom:16px;border:1.5px solid var(--rose-light);position:relative;overflow:hidden;">
     <div style="position:absolute;right:12px;top:10px;font-size:36px;opacity:.2;">${q.emoji}</div>
     <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--rose-deep);margin-bottom:8px;">✨ Spruch des Tages</div>
