@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<!-- v1.1 -->
+<!-- v1.2 -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -182,7 +182,7 @@ const PERSONS = [
   { name:'Steffi', start:new Date(2026,5,2), days:75 },
   { name:'Irina',  start:new Date(2026,5,2), days:75 },
 ];
-const MAX_PTS=11, DAY_GOAL=8, GOAL_PCT=0.6, MAX_CC=8;
+const MAX_PTS=12, DAY_GOAL=8, GOAL_PCT=0.6, MAX_CC=8;
 const TASKS=[
   {key:'water',  icon:'💧',name:'Wasser',    sub:'2L = 2 Pkt · 1,5L = 1 Pkt',max:2},
   {key:'outdoor',icon:'👟',name:'Outdoor',   sub:'45 Min = 2 · 20 Min = 1',  max:2},
@@ -190,6 +190,7 @@ const TASKS=[
   {key:'sugar',  icon:'🚫',name:'Kein Zucker',sub:'Kein = 2 · 1x klein = 1', max:2},
   {key:'read',   icon:'📚',name:'Lesen',     sub:'10 Seiten = 2 · 5 = 1',    max:2},
   {key:'photo',  icon:'📸',name:'Foto',      sub:'Gemacht = 1 · Nicht = 0',  max:1},
+  {key:'floss',  icon:'🦷',name:'Zahnseide', sub:'Benutzt = 1 · Nicht = 0',  max:1, startDay:25},
 ];
 const MOTIVATIONS=['💪 Stark gemacht!','🌟 Weiter so!','🔥 On fire!','✨ Unaufhaltbar!',
   '🏆 Championinnen!','🌸 Diszipliniert & schön!','💎 Top!','🎯 Volltreffer!','🚀 So geht das!','❤️ Proud of you!'];
@@ -285,8 +286,8 @@ function dayDate(name,idx){
   const d=new Date(getPerson(name).start);d.setDate(d.getDate()+idx);
   return d.toLocaleDateString('de-AT',{weekday:'short',day:'2-digit',month:'2-digit'});
 }
-const getDayData=(name,idx)=>state[name][idx]||{water:null,outdoor:null,indoor:null,sugar:null,read:null,photo:null,note:'',cc:false};
-const dayScore=(name,idx)=>TASKS.reduce((s,t)=>s+(getDayData(name,idx)[t.key]??0),0);
+const getDayData=(name,idx)=>state[name][idx]||{water:null,outdoor:null,indoor:null,sugar:null,read:null,photo:null,floss:null,note:'',cc:false};
+const dayScore=(name,idx)=>TASKS.reduce((s,t)=>{if(t.startDay&&idx<t.startDay)return s;return s+(getDayData(name,idx)[t.key]??0);},0);
 function totalScore(name){let s=0;for(let i=0;i<totalDays(name);i++)s+=dayScore(name,i);return s;}
 function streak(name){
   const today=getToday(name);let s=0;
@@ -576,7 +577,7 @@ function renderHome(){
       <div class="task-guide-row">
         <span class="tg-icon">${t.icon}</span>
         <div class="tg-info">
-          <div class="tg-name">${t.name}</div>
+          <div class="tg-name">${t.name}${t.startDay?` <span style="font-size:10px;color:var(--text-soft);">(ab Tag ${t.startDay+1})</span>`:''}</div>
           <div class="tg-pts">
             ${t.max===2
               ?`<span class="pt-badge pt-2">2 Pkt: voll</span><span class="pt-badge pt-1">1 Pkt: halb</span><span class="pt-badge pt-0">0: nichts</span>`
@@ -694,6 +695,7 @@ function renderDayCard(name,idx,isToday,isMe){
       <div class="day-score-badge ${badgeCls}">${emoji} ${sc}/${MAX_PTS}</div>
     </div>`;
   TASKS.forEach(task=>{
+    if(task.startDay && idx < task.startDay) return; // not yet active
     const val=d[task.key];
     if(isMe){
       if(task.max===2){
@@ -705,13 +707,14 @@ function renderDayCard(name,idx,isToday,isMe){
             ${[0,1,2].map(v=>`<button class="score-btn ${val===v?'sel-'+v:''}" onclick="setScore('${name}',${idx},'${task.key}',${v})">${v}</button>`).join('')}
           </div></div>`;
       }else{
+        const doneLabel=task.key==='photo'?'📸':'✓';
         html+=`<div class="task-row">
           <div class="task-info"><span class="task-icon">${task.icon}</span>
             <div><div class="task-name">${task.name}</div><div class="task-sub">${task.sub}</div></div>
           </div>
           <div class="score-btns">
             <button class="score-btn ${val===0?'sel-0':''}" onclick="setScore('${name}',${idx},'${task.key}',0)">✗</button>
-            <button class="score-btn ${val===1?'sel-photo':''}" onclick="setScore('${name}',${idx},'${task.key}',1)">📸</button>
+            <button class="score-btn ${val===1?'sel-photo':''}" onclick="setScore('${name}',${idx},'${task.key}',1)">${doneLabel}</button>
           </div></div>`;
       }
     }else{
@@ -725,13 +728,14 @@ function renderDayCard(name,idx,isToday,isMe){
             ${[0,1,2].map(v=>`<span class="score-btn ${val===v?'sel-'+v:''}" style="opacity:${val===v?'1':'0.3'};cursor:default;">${v}</span>`).join('')}
           </div></div>`;
       }else{
+        const doneLabel=task.key==='photo'?'📸':'✓';
         html+=`<div class="task-row">
           <div class="task-info"><span class="task-icon">${task.icon}</span>
             <div><div class="task-name">${task.name}</div><div class="task-sub">${task.sub}</div></div>
           </div>
           <div class="score-btns">
             <span class="score-btn ${val===0?'sel-0':''}" style="opacity:${val===0?'1':'0.3'};cursor:default;">✗</span>
-            <span class="score-btn ${val===1?'sel-photo':''}" style="opacity:${val===1?'1':'0.3'};cursor:default;">📸</span>
+            <span class="score-btn ${val===1?'sel-photo':''}" style="opacity:${val===1?'1':'0.3'};cursor:default;">${doneLabel}</span>
           </div></div>`;
       }
     }
