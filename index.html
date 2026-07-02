@@ -115,6 +115,33 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--rose-deep);color:white;padding:12px 24px;border-radius:99px;font-size:14px;font-weight:600;opacity:0;transition:all .4s cubic-bezier(.34,1.56,.64,1);z-index:998;white-space:nowrap;pointer-events:none;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 #install-banner{display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:white;border:2px solid var(--rose-light);border-radius:20px;padding:14px 20px;box-shadow:0 4px 24px rgba(201,123,132,.25);z-index:200;align-items:center;gap:12px;max-width:340px;width:90%;}
+/* ── PLANK CHALLENGE ─────────────────────────────────────────────────────── */
+.plank-card{background:white;border-radius:20px;padding:20px;margin-bottom:16px;box-shadow:0 2px 12px rgba(168,92,104,.09);border:1px solid var(--rose-light);}
+.plank-eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-soft);margin-bottom:2px;}
+.plank-ring-zone{display:flex;justify-content:center;margin:8px 0 18px;}
+.plank-ring{position:relative;width:200px;height:200px;}
+.plank-ring svg{transform:rotate(-90deg);width:100%;height:100%;}
+.plank-ring circle{fill:none;stroke-width:9;}
+.plank-ring .track{stroke:var(--blush-mid);}
+.plank-ring .progress{stroke:var(--rose);stroke-linecap:round;transition:stroke-dashoffset .3s linear,stroke .6s ease;}
+.plank-time{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.plank-time .num{font-size:38px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text);}
+.plank-time .label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-soft);margin-top:4px;}
+.plank-controls{display:flex;gap:10px;justify-content:center;margin-bottom:18px;}
+.plank-btn{border:1.5px solid var(--rose-light);background:white;color:var(--text);padding:10px 18px;border-radius:99px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.plank-btn:active{transform:scale(.97);}
+.plank-btn.primary{background:linear-gradient(135deg,var(--rose-deep),var(--rose));border-color:transparent;color:white;}
+.plank-stats{display:flex;justify-content:space-between;font-size:12px;color:var(--text-soft);border-top:1px solid var(--rose-light);padding-top:14px;margin-bottom:4px;}
+.plank-stats strong{color:var(--text);font-size:16px;display:block;font-weight:700;margin-top:2px;}
+.plank-history{display:flex;align-items:flex-end;gap:3px;height:40px;margin:14px 0 2px;}
+.plank-bar{flex:1;background:var(--rose-light);border-radius:2px 2px 0 0;min-height:2px;}
+.plank-bar.pr{background:linear-gradient(180deg,var(--warn),#FFB347);}
+.plank-toast{text-align:center;font-size:12px;color:var(--rose-deep);font-weight:600;min-height:16px;margin-top:10px;}
+.plank-tips summary{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--rose-deep);cursor:pointer;font-weight:600;}
+.plank-tips ul{margin:10px 0 0;padding-left:18px;font-size:13.5px;line-height:1.65;color:var(--text);}
+.plank-rank-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--blush);font-size:13px;}
+.plank-rank-row:last-child{border-bottom:none;}
+.plank-rank-row.me{font-weight:700;color:var(--rose-deep);}
 ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:var(--rose-light);border-radius:99px;}
 </style>
 </head>
@@ -149,6 +176,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
     <div class="nav-item" id="nav-chat" onclick="navigate('chat')">
       <span class="nav-icon">💬</span><span>Chat</span>
+    </div>
+    <div class="nav-item" id="nav-plank" onclick="navigate('plank')">
+      <span class="nav-icon">🧘</span><span>Plank</span>
     </div>
   </nav>
 </div>
@@ -271,7 +301,7 @@ const QUOTES=[
 ];
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let state={}, currentPerson=null, chatMessages=[], pins={};
+let state={}, currentPerson=null, chatMessages=[], pins={}, plankState={};
 PERSONS.forEach(p=>state[p.name]={});
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -377,6 +407,20 @@ async function initListeners(){
     chatMessages=snap.docs.map(d=>({id:d.id,...d.data()})).reverse();
     if(currentPerson&&document.getElementById('chat-messages'))renderChatMessages();
   });
+  PERSONS.forEach(p=>{
+    onSnapshot(doc(db,'plankChallenge',p.name),snap=>{
+      plankState[p.name]=snap.exists()?(snap.data().entries||[]):[];
+      const rankEl=document.getElementById('plank-ranking');
+      if(rankEl)rankEl.innerHTML=renderPlankRankingHTML();
+    },()=>{plankState[p.name]=plankState[p.name]||[];});
+  });
+}
+async function savePlankEntry(seconds){
+  const name=currentPerson;
+  plankState[name]=plankState[name]||[];
+  plankState[name].push({durationSeconds:seconds,date:new Date().toISOString()});
+  try{await setDoc(doc(db,'plankChallenge',name),{entries:plankState[name]},{merge:true});}
+  catch(e){console.warn('Plank speichern fehlgeschlagen:',e);}
 }
 
 // ── NAVIGATION ────────────────────────────────────────────────────────────────
@@ -415,6 +459,7 @@ window.navigate=function(page,arg=null){
   else if(page==='person')   el.innerHTML=renderPerson(currentPerson,true);
   else if(page==='person-other') el.innerHTML=renderPerson(arg,false);
   else if(page==='chat')     {el.innerHTML=renderChatPage();setTimeout(()=>{const m=document.getElementById('chat-messages');if(m)m.scrollTop=m.scrollHeight;},100);}
+  else if(page==='plank')    {el.innerHTML=renderPlank();initPlankPage();}
   window.scrollTo({top:0,behavior:'smooth'});
 };
 window.goToMyDays=function(){if(currentPerson)navigate('person');};
@@ -790,6 +835,74 @@ function renderChatPage(){
   <div style="height:20px"></div>`;
 }
 
+function renderPlankRankingHTML(){
+  const rows=PERSONS.map(p=>{
+    const entries=plankState[p.name]||[];
+    const best=entries.reduce((m,e)=>Math.max(m,e.durationSeconds),0);
+    return {name:p.name,best};
+  }).sort((a,b)=>b.best-a.best);
+  return rows.map(r=>`
+    <div class="plank-rank-row${r.name===currentPerson?' me':''}">
+      <span>${r.name}${r.name===currentPerson?' (du)':''}</span>
+      <span>${r.best>0?fmtPlank(r.best):'–'}</span>
+    </div>`).join('');
+}
+function renderPlank(){
+  const myEntries=plankState[currentPerson]||[];
+  const myBest=myEntries.reduce((m,e)=>Math.max(m,e.durationSeconds),0);
+  return `
+  <div class="section-title">Plank Challenge 🧘</div>
+  <div class="plank-card">
+    <div class="plank-eyebrow">Eigener Bereich · zählt nicht in euren Gruppen-Score</div>
+    <div class="plank-ring-zone">
+      <div class="plank-ring">
+        <svg viewBox="0 0 200 200">
+          <circle class="track" cx="100" cy="100" r="88"></circle>
+          <circle class="progress" id="plank-progress" cx="100" cy="100" r="88" stroke-dasharray="553" stroke-dashoffset="553"></circle>
+        </svg>
+        <div class="plank-time">
+          <div class="num" id="plank-num">00:00</div>
+          <div class="label" id="plank-phase">Bereit</div>
+        </div>
+      </div>
+    </div>
+    <div class="plank-controls">
+      <button class="plank-btn primary" id="plank-start-btn" onclick="plankStart()">Start</button>
+      <button class="plank-btn" onclick="plankStop()">Beenden &amp; speichern</button>
+      <button class="plank-btn" onclick="plankReset()">Reset</button>
+    </div>
+    <div class="plank-stats">
+      <div>Dein Rekord<strong id="plank-pr">${myBest>0?fmtPlank(myBest):'–'}</strong></div>
+      <div>Ziel<strong>05:00</strong></div>
+      <div>Sessions<strong id="plank-count">${myEntries.length}</strong></div>
+    </div>
+    <div class="plank-history" id="plank-history">${renderPlankHistoryBars(myEntries,myBest)}</div>
+    <div class="plank-toast" id="plank-toast"></div>
+  </div>
+  <div class="plank-card">
+    <div class="plank-eyebrow" style="margin-bottom:10px;">Persönliche Rekorde in der Gruppe</div>
+    <div id="plank-ranking">${renderPlankRankingHTML()}</div>
+  </div>
+  <div class="plank-card">
+    <details class="plank-tips">
+      <summary>Technik-Tipps</summary>
+      <ul>
+        <li>Ellbogen direkt unter den Schultern, Unterarme parallel</li>
+        <li>Becken nicht durchhängen und nicht hochschieben – eine gerade Linie von Kopf bis Ferse</li>
+        <li>Bauchnabel Richtung Wirbelsäule ziehen, Gesäß leicht anspannen</li>
+        <li>Blick leicht nach unten, Nacken lang lassen</li>
+        <li>Ruhig weiteratmen – Luft anhalten kostet dich Zeit, nicht Kraft</li>
+      </ul>
+    </details>
+  </div>
+  <div style="height:20px"></div>`;
+}
+function renderPlankHistoryBars(entries,best){
+  if(!entries.length)return '';
+  const last12=entries.slice(-12);
+  const localMax=Math.max(...last12.map(e=>e.durationSeconds),1);
+  return last12.map(e=>`<div class="plank-bar${e.durationSeconds===best?' pr':''}" style="height:${Math.max(4,(e.durationSeconds/localMax)*40)}px" title="${fmtPlank(e.durationSeconds)}"></div>`).join('');
+}
 function renderChatMessagesHTML(){
   if(chatMessages.length===0)return`<div style="text-align:center;color:var(--text-soft);padding:40px 0;font-size:14px;">Noch keine Nachrichten 🌸<br><span style="font-size:12px">Schreibt die erste!</span></div>`;
   return chatMessages.map(m=>renderMessage(m)).join('');
@@ -960,6 +1073,76 @@ window.sendGif = async function(gifUrl) {
     const input = document.getElementById('gif-search-input');
     if(input) input.value = '';
   } catch(e) { showToast('Fehler beim Senden 😢'); }
+};
+
+// ── PLANK TIMER ───────────────────────────────────────────────────────────────
+let plankRunning=false, plankStartTs=0, plankElapsed=0, plankRafId=null, plankMilestoneSaid=new Set();
+const PLANK_GOAL=300, PLANK_CIRC=553;
+const PLANK_MILESTONES=[
+  {s:10,text:'Zehn Sekunden. Sauber angekommen.'},
+  {s:30,text:'Dreißig Sekunden. Ruhig weiteratmen.'},
+  {s:60,text:'Eine Minute. Du bist drin.'},
+  {s:120,text:'Zwei Minuten. Stark.'},
+  {s:180,text:'Drei Minuten. Das war früher dein Rekord.'},
+  {s:240,text:'Vier Minuten. Fast am Ziel.'},
+  {s:300,text:'Fünf Minuten. Genau da wolltest du hin.'},
+];
+function fmtPlank(s){const m=Math.floor(s/60).toString().padStart(2,'0'),sec=Math.floor(s%60).toString().padStart(2,'0');return `${m}:${sec}`;}
+function plankSpeak(text){if(!('speechSynthesis'in window))return;const u=new SpeechSynthesisUtterance(text);u.lang='de-DE';u.rate=0.98;speechSynthesis.speak(u);}
+function plankPhase(s){if(s<30)return{color:'var(--rose-light)',label:'Einstieg'};if(s<120)return{color:'var(--rose)',label:'In Bewegung'};return{color:'var(--rose-deep)',label:'Maximaler Einsatz'};}
+function initPlankPage(){plankRunning=false;plankElapsed=0;plankMilestoneSaid=new Set();plankRenderTick();}
+function plankRenderTick(){
+  const numEl=document.getElementById('plank-num'),progEl=document.getElementById('plank-progress'),phaseEl=document.getElementById('plank-phase');
+  if(!numEl)return;
+  numEl.textContent=fmtPlank(plankElapsed);
+  const pct=Math.min(plankElapsed/PLANK_GOAL,1);
+  progEl.style.strokeDashoffset=PLANK_CIRC*(1-pct);
+  const ph=plankPhase(plankElapsed);
+  progEl.style.stroke=ph.color;
+  phaseEl.textContent=plankRunning?ph.label:(plankElapsed>0?'Pausiert':'Bereit');
+}
+function plankTick(){
+  if(!plankRunning)return;
+  plankElapsed=(Date.now()-plankStartTs)/1000;
+  plankRenderTick();
+  PLANK_MILESTONES.forEach(m=>{
+    if(plankElapsed>=m.s&&!plankMilestoneSaid.has(m.s)){
+      plankMilestoneSaid.add(m.s);
+      plankSpeak(m.text);
+      const t=document.getElementById('plank-toast');if(t)t.textContent=m.text;
+    }
+  });
+  plankRafId=requestAnimationFrame(plankTick);
+}
+window.plankStart=function(){
+  if(plankRunning)return;
+  plankRunning=true;
+  plankStartTs=Date.now()-plankElapsed*1000;
+  const btn=document.getElementById('plank-start-btn');if(btn)btn.textContent='Läuft…';
+  plankTick();
+};
+window.plankStop=async function(){
+  if(plankElapsed<1)return;
+  plankRunning=false;
+  cancelAnimationFrame(plankRafId);
+  const seconds=Math.floor(plankElapsed);
+  const prevBest=(plankState[currentPerson]||[]).reduce((m,e)=>Math.max(m,e.durationSeconds),0);
+  const isPR=seconds>prevBest;
+  await savePlankEntry(seconds);
+  const t=document.getElementById('plank-toast');
+  if(isPR){plankSpeak('Neuer persönlicher Rekord. '+fmtPlank(seconds)+'.');if(t)t.textContent='Neuer persönlicher Rekord: '+fmtPlank(seconds);}
+  else if(t)t.textContent='Gespeichert: '+fmtPlank(seconds);
+  plankElapsed=0;plankMilestoneSaid=new Set();
+  const btn=document.getElementById('plank-start-btn');if(btn)btn.textContent='Start';
+  plankRenderTick();
+  const el=document.getElementById('main-content');
+  if(el&&window._currentPage==='plank')el.innerHTML=renderPlank();
+};
+window.plankReset=function(){
+  plankRunning=false;cancelAnimationFrame(plankRafId);plankElapsed=0;plankMilestoneSaid=new Set();
+  const btn=document.getElementById('plank-start-btn');if(btn)btn.textContent='Start';
+  const t=document.getElementById('plank-toast');if(t)t.textContent='';
+  plankRenderTick();
 };
 
 initListeners();
