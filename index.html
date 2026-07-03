@@ -850,10 +850,11 @@ function renderPlankRankingHTML(){
 function renderPlank(){
   const myEntries=plankState[currentPerson]||[];
   const myBest=myEntries.reduce((m,e)=>Math.max(m,e.durationSeconds),0);
+  const todayInfo=plankTodayInfo();
   return `
   <div class="section-title">Plank Challenge 🧘</div>
   <div class="plank-card">
-    <div class="plank-eyebrow">Eigener Bereich · zählt nicht in euren Gruppen-Score</div>
+    ${plankScheduleBannerHTML()}
     <div class="plank-ring-zone">
       <div class="plank-ring">
         <svg viewBox="0 0 200 200">
@@ -873,7 +874,7 @@ function renderPlank(){
     </div>
     <div class="plank-stats">
       <div>Dein Rekord<strong id="plank-pr">${myBest>0?fmtPlank(myBest):'–'}</strong></div>
-      <div>Ziel<strong>05:00</strong></div>
+      <div>Heutiges Ziel<strong id="plank-goal">${fmtPlank(todayInfo.goal)}</strong></div>
       <div>Sessions<strong id="plank-count">${myEntries.length}</strong></div>
     </div>
     <div class="plank-history" id="plank-history">${renderPlankHistoryBars(myEntries,myBest)}</div>
@@ -1077,20 +1078,51 @@ window.sendGif = async function(gifUrl) {
 
 // ── PLANK TIMER ───────────────────────────────────────────────────────────────
 let plankRunning=false, plankStartTs=0, plankElapsed=0, plankRafId=null, plankMilestoneSaid=new Set();
-const PLANK_GOAL=300, PLANK_CIRC=553;
-const PLANK_MILESTONES=[
-  {s:10,text:'Zehn Sekunden. Sauber angekommen.'},
-  {s:30,text:'Dreißig Sekunden. Ruhig weiteratmen.'},
-  {s:60,text:'Eine Minute. Du bist drin.'},
-  {s:120,text:'Zwei Minuten. Stark.'},
-  {s:180,text:'Drei Minuten. Das war früher dein Rekord.'},
-  {s:240,text:'Vier Minuten. Fast am Ziel.'},
-  {s:300,text:'Fünf Minuten. Genau da wolltest du hin.'},
-];
+const PLANK_CIRC=553;
+let PLANK_GOAL=300; // wird pro Tag dynamisch gesetzt, siehe plankTodayInfo()
+
+// 30-Tage-Plan (Sekunden), Pause-Tage = null. Reihenfolge Tag 1 → Tag 30.
+const PLANK_SCHEDULE=[20,30,40,50,60,null,60,70,75,80,85,90,null,100,110,120,135,150,null,150,165,180,195,210,225,null,240,255,270,300];
+const PLANK_START=new Date(2026,6,6); // Montag, 06.07.2026
+
+function plankTodayInfo(){
+  const start=new Date(PLANK_START.getFullYear(),PLANK_START.getMonth(),PLANK_START.getDate());
+  const today=new Date();
+  const todayMid=new Date(today.getFullYear(),today.getMonth(),today.getDate());
+  const dayNum=Math.floor((todayMid-start)/86400000)+1;
+  if(dayNum<1)return{state:'before',dayNum,goal:300};
+  if(dayNum>PLANK_SCHEDULE.length)return{state:'done',dayNum:PLANK_SCHEDULE.length,goal:300};
+  const goal=PLANK_SCHEDULE[dayNum-1];
+  if(goal===null)return{state:'pause',dayNum,goal:300};
+  return{state:'active',dayNum,goal};
+}
+function plankScheduleBannerHTML(){
+  const info=plankTodayInfo();
+  if(info.state==='before')return `<div class="plank-eyebrow">Challenge startet Montag, 06.07.2026 · dann geht's mit Tag 1 (20 Sek) los</div>`;
+  if(info.state==='done')return `<div class="plank-eyebrow">🎉 30-Tage-Plan geschafft! Timer läuft trotzdem weiter, freestyle</div>`;
+  if(info.state==='pause')return `<div class="plank-eyebrow">Tag ${info.dayNum}/30 · heute ist laut Plan Pause-Tag – Timer geht trotzdem, falls du magst</div>`;
+  return `<div class="plank-eyebrow">Tag ${info.dayNum}/30 · heutiges Ziel: ${fmtPlank(info.goal)}</div>`;
+}
+function plankMilestonesForGoal(goal){
+  const classics=[
+    {s:10,text:'Zehn Sekunden. Sauber angekommen.'},
+    {s:30,text:'Dreißig Sekunden. Ruhig weiteratmen.'},
+    {s:60,text:'Eine Minute. Du bist drin.'},
+    {s:120,text:'Zwei Minuten. Stark.'},
+    {s:180,text:'Drei Minuten. Das war früher dein Rekord.'},
+    {s:240,text:'Vier Minuten. Fast am Ziel.'},
+  ].filter(m=>m.s<goal);
+  classics.push({s:goal,text:goal===300?'Fünf Minuten. Genau da wolltest du hin.':'Tagesziel erreicht. '+fmtPlank(goal)+' geschafft.'});
+  return classics;
+}
 function fmtPlank(s){const m=Math.floor(s/60).toString().padStart(2,'0'),sec=Math.floor(s%60).toString().padStart(2,'0');return `${m}:${sec}`;}
 function plankSpeak(text){if(!('speechSynthesis'in window))return;const u=new SpeechSynthesisUtterance(text);u.lang='de-DE';u.rate=0.98;speechSynthesis.speak(u);}
 function plankPhase(s){if(s<30)return{color:'var(--rose-light)',label:'Einstieg'};if(s<120)return{color:'var(--rose)',label:'In Bewegung'};return{color:'var(--rose-deep)',label:'Maximaler Einsatz'};}
-function initPlankPage(){plankRunning=false;plankElapsed=0;plankMilestoneSaid=new Set();plankRenderTick();}
+function initPlankPage(){
+  plankRunning=false;plankElapsed=0;plankMilestoneSaid=new Set();
+  PLANK_GOAL=plankTodayInfo().goal;
+  plankRenderTick();
+}
 function plankRenderTick(){
   const numEl=document.getElementById('plank-num'),progEl=document.getElementById('plank-progress'),phaseEl=document.getElementById('plank-phase');
   if(!numEl)return;
@@ -1105,7 +1137,7 @@ function plankTick(){
   if(!plankRunning)return;
   plankElapsed=(Date.now()-plankStartTs)/1000;
   plankRenderTick();
-  PLANK_MILESTONES.forEach(m=>{
+  plankMilestonesForGoal(PLANK_GOAL).forEach(m=>{
     if(plankElapsed>=m.s&&!plankMilestoneSaid.has(m.s)){
       plankMilestoneSaid.add(m.s);
       plankSpeak(m.text);
